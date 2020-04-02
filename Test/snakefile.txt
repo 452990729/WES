@@ -1,0 +1,278 @@
+Samples = "P19019419 P19020827 P19021799 P19021808 P19021811 P19023351 P19023405 P19024999 P19025748 P19027319 P19027686".split()
+TP = "snp indel".split()
+
+
+FASTA = "/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Database/hg19/ucsc.hg19.fasta"
+REGION = "/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Test/TargetGeneRegionExtend15bpMerge.bed"
+G1000 = "/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Database/hg19/1000G_phase1.indels.hg19.sites.vcf"
+Mills = "/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Database/hg19/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf"
+DBSNP = "/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Database/hg19/dbsnp_138.hg19.vcf"
+
+
+rule All:
+	input:
+		"5.Anno/3.Final/QCStat.xls"
+
+rule QC:
+	input:
+		"RawData/{sample}_1.fq.gz"
+	output:
+		"1.QC/{sample}_1.clean.fq.gz"
+	log:
+		e = "logs/{sample}.qc.e", o = "logs/{sample}.qc.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/fastp -i RawData/{wildcards.sample}_1.fq.gz -o 1.QC/{wildcards.sample}_1.clean.fq.gz -I RawData/{wildcards.sample}_2.fq.gz -O 1.QC/{wildcards.sample}_2.clean.fq.gz -A -j 1.QC/{wildcards.sample}_QC_report.json -h 1.QC/{wildcards.sample}_QC_report.html"
+
+rule Align:
+	input:
+		"1.QC/{sample}_1.clean.fq.gz"
+	output:
+		"2.Align/{sample}.bam"
+	params:
+		rg="@RG\\tID:{sample}\\tPL:illumina\\tSM:{sample}"
+	log:
+		e = "logs/{sample}.align.e", o = "logs/{sample}.align.o"
+	threads: 5
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/bwa mem -t 5 -M -R '{params.rg}' {FASTA} 1.QC/{wildcards.sample}_1.clean.fq.gz 1.QC/{wildcards.sample}_2.clean.fq.gz |/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/samtools view -Sb -@ 4 -T {FASTA} -o {output}"
+
+rule Sort:
+	input:
+		"2.Align/{sample}.bam"
+	output:
+		"2.Align/{sample}.sort.bam"
+	log:
+		e = "logs/{sample}.sort.e", o = "logs/{sample}.sort.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk SortSam --INPUT {input} --OUTPUT {output} --SORT_ORDER coordinate"
+
+rule MarkDup:
+	input:
+		"2.Align/{sample}.sort.bam"
+	output:
+		"2.Align/{sample}.sort.dedup.bam"
+	log:
+		e = "logs/{sample}.redup.e", o = "logs/{sample}.redup.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk MarkDuplicates --INPUT {input} --OUTPUT {output} --METRICS_FILE 2.Align/{wildcards.sample}.metrics --MAX_FILE_HANDLES_FOR_READ_ENDS_MAP 1000"
+
+rule BamIndex:
+	input:
+		"2.Align/{sample}.sort.dedup.bam"
+	output:
+		"2.Align/{sample}.sort.dedup.bam.bai"
+	log:
+		e = "logs/{sample}.BamIndex.e", o = "logs/{sample}.BamIndex.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/samtools index {input}"
+
+rule BaseRecalibrator:
+	input:
+		"2.Align/{sample}.sort.dedup.bam.bai"
+	output:
+		"3.Call/{sample}.recalibration.report"
+	log:
+		e = "logs/{sample}.BaseRecalibrator.e", o = "logs/{sample}.BaseRecalibrator.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk BaseRecalibrator --input 2.Align/{wildcards.sample}.sort.dedup.bam --output {output} --reference {FASTA} --intervals {REGION} --known-sites {G1000} --known-sites {Mills}"
+
+rule GatherBQSRReports:
+	input:
+		expand("3.Call/{sample}.recalibration.report", sample=Samples)
+	output:
+		"3.Call/all.recalibration.report"
+	log:
+		e = "logs/GatherBQSRReports.e", o = "logs/GatherBQSRReports.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk GatherBQSRReports -I 3.Call/P19019419.recalibration.report -I 3.Call/P19020827.recalibration.report -I 3.Call/P19021799.recalibration.report -I 3.Call/P19021808.recalibration.report -I 3.Call/P19021811.recalibration.report -I 3.Call/P19023351.recalibration.report -I 3.Call/P19023405.recalibration.report -I 3.Call/P19024999.recalibration.report -I 3.Call/P19025748.recalibration.report -I 3.Call/P19027319.recalibration.report -I 3.Call/P19027686.recalibration.report -O {output}"
+
+rule ApplyBQSR:
+	input:
+		report="3.Call/all.recalibration.report",bam="2.Align/{sample}.sort.dedup.bam"
+	output:
+		"3.Call/{sample}.sort.dedup.BQSR.bam"
+	log:
+		e = "logs/{sample}.ApplyBQSR.e", o = "logs/{sample}.ApplyBQSR.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk ApplyBQSR -R {FASTA} -I {input.bam} -O {output} -bqsr {input.report} --static-quantized-quals 10 --static-quantized-quals 20 --static-quantized-quals 30 --add-output-sam-program-record --use-original-qualities -L {REGION}"
+
+rule HaplotypeCaller:
+	input:
+		"3.Call/{sample}.sort.dedup.BQSR.bam"
+	output:
+		"3.Call/{sample}.gvcf"
+	log:
+		e = "logs/{sample}.HaplotypeCaller.e", o = "logs/{sample}.HaplotypeCaller.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk HaplotypeCaller -R {FASTA} --emit-ref-confidence GVCF -I {input} -D {DBSNP} -L {REGION} -O {output}"
+
+rule CombineGVCFs:
+	input:
+		expand("3.Call/{sample}.gvcf", sample=Samples)
+	output:
+		"3.Call/All.gvcf"
+	log:
+		e = "logs/CombineGVCFs.e", o = "logs/CombineGVCFs.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk CombineGVCFs -R {FASTA} -V 3.Call/P19019419.gvcf -V 3.Call/P19020827.gvcf -V 3.Call/P19021799.gvcf -V 3.Call/P19021808.gvcf -V 3.Call/P19021811.gvcf -V 3.Call/P19023351.gvcf -V 3.Call/P19023405.gvcf -V 3.Call/P19024999.gvcf -V 3.Call/P19025748.gvcf -V 3.Call/P19027319.gvcf -V 3.Call/P19027686.gvcf -O {output}"
+
+rule GenotypeGVCFs:
+	input:
+		"3.Call/All.gvcf"
+	output:
+		"3.Call/All.raw.gvcf"
+	log:
+		e = "logs/GenotypeGVCFs.e", o = "logs/GenotypeGVCFs.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk GenotypeGVCFs -R {FASTA} -V {input} -O {output} -L {REGION}"
+
+rule SelectSNP:
+	input:
+		"3.Call/All.raw.gvcf"
+	output:
+		"4.Mutation/All.raw.snp.vcf"
+	log:
+		e = "logs/SelectSNP.e", o = "logs/SelectSNP.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk SelectVariants -select-type SNP -V {input} -O {output}"
+
+rule SelectIndel:
+	input:
+		"3.Call/All.raw.gvcf"
+	output:
+		"4.Mutation/All.raw.indel.vcf"
+	log:
+		e = "logs/SelectIndel.e", o = "logs/SelectIndel.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk SelectVariants -select-type INDEL -V {input} -O {output}"
+
+rule FilterSNP:
+	input:
+		"4.Mutation/All.raw.snp.vcf"
+	output:
+		"4.Mutation/All.raw.snp.filter.vcf"
+	log:
+		e = "logs/FilterSNP.e", o = "logs/FilterSNP.o"
+	shell:
+		'/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk VariantFiltration -V {input} --filter-expression "QD < 2.0 || MQ < 40.0 || FS > 60.0 || SOR > 3.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" --filter-name "Filter" -O {output}'
+
+rule FilterIndel:
+	input:
+		"4.Mutation/All.raw.indel.vcf"
+	output:
+		"4.Mutation/All.raw.indel.filter.vcf"
+	log:
+		e = "logs/FilterIndel.e", o = "logs/FilterIndel.o"
+	shell:
+		'/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk VariantFiltration -V {input} --filter-expression "QD < 2.0 || FS > 200.0 || SOR > 10.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" --filter-name "Filter" -O {output}'
+
+rule MergeVcfs:
+	input:
+		indel="4.Mutation/All.raw.indel.filter.vcf",snp="4.Mutation/All.raw.snp.filter.vcf"
+	output:
+		"4.Mutation/All.raw.filter.vcf"
+	log:
+		e = "logs/MergeVcfs.e", o = "logs/MergeVcfs.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/gatk MergeVcfs -I {input.snp} -I {input.indel} -O {output}"
+
+rule Convert2Annovar:
+	input:
+		"4.Mutation/All.raw.{tp}.filter.vcf"
+	output:
+		"4.Mutation/All.raw.{tp}.filter.Avinput"
+	log:
+		e = "logs/{tp}.Convert2Annovar.e", o = "logs/{tp}.Convert2Annovar.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/annovar/convert2annovar.pl -format vcf4 -allsample -withfreq --filter PASS {input} > {output}"
+
+rule TableAnnovar:
+	input:
+		"4.Mutation/All.raw.{tp}.filter.Avinput"
+	output:
+		"5.Anno/1.Annovar/All.raw.{tp}.filter.anno.hg19_multianno.txt"
+	log:
+		e = "logs/{tp}.TableAnnovar.e", o = "logs/{tp}.TableAnnovar.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/annovar/table_annovar.pl {input} /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/annovar/humandb/ -buildver hg19 -out 5.Anno/1.Annovar/All.raw.{wildcards.tp}.filter.anno -remove -protocol refGene,phastConsElements46way,genomicSuperDups,exac03,snp138,esp6500siv2_all,1000g2015aug_all,clinvar_20190305,ljb26_all,cosmic68 -operation g,r,r,f,f,f,f,f,f,f -nastring . -polish"
+
+rule Intervar:
+	input:
+		"4.Mutation/All.raw.{tp}.filter.Avinput"
+	output:
+		label="5.Anno/2.Intervar/All.raw.{tp}.filter.hg19_multianno.txt.intervar"
+	log:
+		e = "logs/{tp}.Intervar.e", o = "logs/{tp}.Intervar.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/InterVar/Intervar.py -b hg19 -i {input} --input_type avinput -o 5.Anno/2.Intervar/All.raw.{wildcards.tp}.filter -t /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/InterVar/intervardb --table_annovar /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/annovar/table_annovar.pl --convert2annovar /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/annovar/convert2annovar.pl --annotate_variation /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/annovar/annotate_variation.pl -d /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/annovar/humandb/"
+
+rule MergeAnno:
+	input:
+		annovar="5.Anno/1.Annovar/All.raw.{tp}.filter.anno.hg19_multianno.txt", interver="5.Anno/2.Intervar/All.raw.{tp}.filter.hg19_multianno.txt.intervar"
+	output:
+		"5.Anno/3.Final/All.{tp}.interver.annovar.txt"
+	log:
+		e = "logs/{tp}.MergeAnno.e", o = "logs/{tp}.MergeAnno.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/python /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Lib/3.Intervar/MergeData.py -i {input.interver} -a {input.annovar} -o {output}"
+
+rule AddAnno:
+	input:
+		"5.Anno/3.Final/All.{tp}.interver.annovar.txt"
+	output:
+		"5.Anno/3.Final/All.{tp}.finalanno.txt"
+	log:
+		e = "logs/{tp}.AddAnno.e", o = "logs/{tp}.AddAnno.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/python /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Lib/3.Intervar/AddAnno.py -i {input} -o {output}"
+
+rule FilterIntervar:
+	input:
+		"5.Anno/3.Final/All.{tp}.finalanno.txt"
+	output:
+		"5.Anno/3.Final/Final{tp}Result.txt"
+	log:
+		e = "logs/{tp}.FilterIntervar.e", o = "logs/{tp}.FilterIntervar.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/python /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Lib/3.Intervar/FilterIntervar.py -i {input} -o 5.Anno/3.Final/"
+
+rule SepSample1:
+	input:
+		anno="5.Anno/3.Final/Final{tp}Result.txt",vcf="4.Mutation/All.raw.{tp}.filter.vcf"
+	output:
+		"5.Anno/3.Final/FinalSample{tp}.txt"
+	log:
+		e = "logs/{tp}.SepSample1.e", o = "logs/{tp}.SepSample1.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/python /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Lib/3.Intervar/SepSampleF.py -i {input.anno} -v {input.vcf} -o {output}"
+
+rule SepSample2:
+	input:
+		anno="5.Anno/3.Final/All.{tp}.finalanno.txt",vcf="4.Mutation/All.raw.{tp}.filter.vcf"
+	output:
+		"5.Anno/3.Final/AllSample{tp}.txt"
+	log:
+		e = "logs/{tp}.SepSample2.e", o = "logs/{tp}.SepSample2.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/python /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Lib/3.Intervar/SepSampleF.py -i {input.anno} -v {input.vcf} -o {output}"
+
+rule IntergrateMutation:
+	input:
+		snp="5.Anno/3.Final/{cls}Samplesnp.txt",indel="5.Anno/3.Final/{cls}Sampleindel.txt"
+	output:
+		"5.Anno/3.Final/{cls}IntergrateMutation.txt"
+	log:
+		e = "logs/Final.IntergrateMutation.e", o = "logs/Final.IntergrateMutation.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/python /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Lib/3.Intervar/IntergrateMutation.py -s {input.snp} -i {input.indel} -o {output}"
+
+rule StatQC:
+	input:
+		a="5.Anno/3.Final/AllIntergrateMutation.txt", b="5.Anno/3.Final/FinalIntergrateMutation.txt"
+	output:
+		"5.Anno/3.Final/QCStat.xls"
+	log:
+		e = "logs/StatQC.e", o = "logs/StatQC.o"
+	shell:
+		"/mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Software/python /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Lib/1.QC/StatData.py -i /mnt/dfc_data1/home/lixuefei/Pipeline/Exon/Test -b {REGION} -o {output}"
+
