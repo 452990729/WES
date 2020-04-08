@@ -288,7 +288,7 @@ def main():
     ### FilterIntervar
     FilterIntervar = Snake('FilterIntervar')
     FilterIntervar.UpdateInput('"6.Final/All.{tp}.finalanno.txt"')
-    FilterIntervar.UpdateOutput('"6.Final/Final{tp}Result.txt"')
+    FilterIntervar.UpdateOutput('"6.Final/Final{tp}Result.txt", "6.Final/Final{tp}ROI.txt"')
     FilterIntervar.UpdateLog('e = "logs/{tp}.FilterIntervar.e", o = "logs/{tp}.FilterIntervar.o"')
     FilterIntervar.UpdateShell(r'"'+PYTHON+' '+FILTERINTERVAR+' -i {input} -o 6.Final/"')
     FilterIntervar.WriteStr(snakefile)
