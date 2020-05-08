@@ -31,7 +31,12 @@ def Merge(pd_data, label, dict_vcf, outfile):
         if lb in dict_vcf:
             out.write('\t'.join(dict_vcf[lb]+[str(i) for i in pd_data.loc[index,:]])+'\n')
         else:
-            pass
+            list_tmp = re.split('_', lb)
+            for i in range(30):
+                tlb = list_tmp[0]+'_'+str(int(list_tmp[1])-i)
+                if tlb in dict_vcf:
+                    out.write('\t'.join(dict_vcf[tlb]+[str(i) for i in pd_data.loc[index,:]])+'\n')
+                    break
     out.close()
 
 def main():
