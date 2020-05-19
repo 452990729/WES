@@ -88,7 +88,7 @@ class Snake(object):
 def MakeSnake(file_in, file_out, platform, cores):
     out = open(file_out, 'w')
     if platform == 'SGE':
-        out.write(SNAKEMAKE+' --cluster "qsub -cwd -V -b y -S /bin/bash -o {log.o} -e {log.e}" -j '+cores+' -s '+file_in+' --printshellcmds --latency-wait 10')
+        out.write(SNAKEMAKE+' --cluster "qsub -cwd -V -b y -S /bin/bash -o {log.o} -e {log.e}" -j '+cores+' -s '+file_in+' --printshellcmds --latency-wait 60')
     elif platform == 'local':
         out.write('{} -j {} -s {} --printshellcmds --latency-wait 10'\
                  .format(SNAKEMAKE, cores, file_in))
@@ -120,6 +120,8 @@ def main():
                 os.system('ln -s {} {}'.format(ob.fq1, ob.Name+'_1.fq.gz'))
                 os.system('ln -s {} {}'.format(ob.fq2, ob.Name+'_2.fq.gz'))
     os.chdir(outpath)
+    if not os.path.exists('logs'):
+        os.mkdir('logs')
     ### config file
     snakefile.write('Samples = "{}".split()\n'.format(' '.join([i.Name for i in\
                                                               list_ob])))
