@@ -127,7 +127,7 @@ def main():
                                                               list_ob])))
     snakefile.write('TP = "snp indel".split()\n\n\n')
     snakefile.write(r'FASTA = "'+HG19+'/ucsc.hg19.fasta\"\n')
-    snakefile.write(r'REGION = "'+HG19+'/Agilent_V5.ex_region.sort.bed\"\n')
+    snakefile.write(r'REGION = "'+HG19+'/hg19.exon.bed\"\n')
     snakefile.write(r'G1000 = "'+HG19+'/1000G_phase1.indels.hg19.sites.vcf\"\n')
     snakefile.write(r'Mills = "'+HG19+'/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf\"\n')
     snakefile.write(r'DBSNP = "'+HG19+'/dbsnp_138.hg19.vcf\"\n\n\n')
@@ -264,6 +264,7 @@ def main():
     TableAnnovar.UpdateInput('"4.Mutation/All.raw.{tp}.filter.Avinput"')
     TableAnnovar.UpdateOutput('"5.Anno/1.Annovar/All.raw.{tp}.filter.anno.hg19_multianno.txt"')
     TableAnnovar.UpdateLog('e = "logs/{tp}.TableAnnovar.e", o = "logs/{tp}.TableAnnovar.o"')
+#    TableAnnovar.UpdateShell(r'"'+ANNOVAR+'/table_annovar.pl {input} '+ANNOVAR+'/humandb/ -buildver hg19 -out 5.Anno/1.Annovar/All.raw.{wildcards.tp}.filter.anno -remove -protocol refGene,phastConsElements46way,genomicSuperDups,exac03,snp138,esp6500siv2_all,1000g2015aug_all,clinvar_20190305,ljb26_all,cosmic68 -operation g,r,r,f,f,f,f,f,f,f -nastring . -polish --argument "-splicing_threshold 50,,,,,,,,,""')
     TableAnnovar.UpdateShell(r'"'+ANNOVAR+'/table_annovar.pl {input} '+ANNOVAR+'/humandb/ -buildver hg19 -out 5.Anno/1.Annovar/All.raw.{wildcards.tp}.filter.anno -remove -protocol refGene,phastConsElements46way,genomicSuperDups,exac03,snp138,esp6500siv2_all,1000g2015aug_all,clinvar_20190305,ljb26_all,cosmic68 -operation g,r,r,f,f,f,f,f,f,f -nastring . -polish"')
     TableAnnovar.WriteStr(snakefile)
     ### Intervar
