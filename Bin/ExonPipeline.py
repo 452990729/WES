@@ -127,7 +127,7 @@ def main():
                                                               list_ob])))
     snakefile.write('TP = "snp indel".split()\n\n\n')
     snakefile.write(r'FASTA = "'+HG19+'/ucsc.hg19.fasta\"\n')
-    snakefile.write(r'REGION = "'+HG19+'/hg19.exon.bed\"\n')
+    snakefile.write(r'REGION = "'+HG19+'/hg19.exon.flanking15.bed\"\n')
     snakefile.write(r'G1000 = "'+HG19+'/1000G_phase1.indels.hg19.sites.vcf\"\n')
     snakefile.write(r'Mills = "'+HG19+'/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf\"\n')
     snakefile.write(r'DBSNP = "'+HG19+'/dbsnp_138.hg19.vcf\"\n\n\n')
