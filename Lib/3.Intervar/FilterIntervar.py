@@ -14,7 +14,7 @@ def ReadData(file_in):
 
 def GetROI(pd_data):
     Func_tp = ['exonic', 'splicing', 'UTR3', 'UTR5']
-    pd_out = pd.DataFrame(columns=pd_data.columns)
+    pd_out = pd.DataFrame(columns=list(pd_data.columns),dtype=object)
     for index in pd_data.index:
         if pd_data.loc[index, 'Func.refGene'] in Func_tp:
             pd_out.loc[index, pd_data.columns] = pd_data.loc[index,:]

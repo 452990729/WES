@@ -152,8 +152,9 @@ def StatTable(file_in):
     pd_feature.loc[:,:] = 0
     for line in list_fl[1:]:
         list_split = re.split('\t', line)
-        if list_split[-66] in list_tp:
-            tp = list_split[-66]
+        print list_split
+        if list_split[-67] in list_tp:
+            tp = list_split[-67]
         else:
             tp = 'PositionOther'
         for i in range(len(list_sample)):
@@ -173,7 +174,7 @@ def StatQC(path_in, bedfile):
     for fl in glob(RawData+'/*_1.fq.gz'):
         lb = re.split('_1\.fq\.gz', os.path.basename(fl))[0]
         list_sample.append(lb)
-    pd_stat = pd.DataFrame(index=sorted(list_sample), columns=['#RawReads', '#ReadsAfterQC', 'QCRate(%)', 'Q20','Q30','GC','#AlignedReads', '#UnAlignedReads', 'AligendRate(%)', '#DuplicateReads', '#ReadsAfterDedup', 'DuplicateRate(%)', '#TargetReads', '#UnTargetReads', 'TargetRate(%)', 'AverageSequencingDepth(x)', 'Percentile5Depth', 'Percentile10Depth', 'Percentile25Depth', 'Percentile50Depth', 'Percentile75Depth', 'Percentile100Depth', 'Coverage(%)', 'CoverageAtLeast4x(%)', 'CoverageAtLeast10x(%)', 'CoverageAtLeast30x(%)', 'CoverageAtLeast100x(%)', 'ExonDepthAtLeast5x(%)', 'ExonDepthAtLeast10x(%)', 'ExonDepthAtLeast20x(%)', 'ExonDepthAtLeast30x(%)', 'ExonDepthAtLeast50x(%)', 'ExonDepthAtLeast100x(%)', 'ExonDepthAtLeast300x(%)', 'ExonAvergeDepth', 'ExonCoverageAtLeast5%', 'ExonCoverageAtLeast20%', 'ExonCoverageAtLeast50%', 'ExonCoverageAtLeast80%', 'ExonCoverageAtLeast100%', 'ExonAverageCoverage', 'ExonTotalLength', 'ExonAvarageLength'])
+    pd_stat = pd.DataFrame(index=sorted(list_sample), columns=['#RawReads', '#ReadsAfterQC', 'QCRate(%)', 'Q20','Q30','GC','#AlignedReads', '#UnAlignedReads', 'AligendRate(%)', '#DuplicateReads', '#ReadsAfterDedup', 'DuplicateRate(%)', '#TargetReads', '#UnTargetReads', 'TargetRate(%)', 'AverageSequencingDepth(x)', 'Percentile5Depth', 'Percentile10Depth', 'Percentile25Depth', 'Percentile50Depth', 'Percentile75Depth', 'Percentile100Depth', 'Coverage(%)', 'CoverageAtLeast4x(%)', 'CoverageAtLeast10x(%)', 'CoverageAtLeast30x(%)', 'CoverageAtLeast100x(%)', 'ExonDepthAtLeast5x(%)', 'ExonDepthAtLeast10x(%)', 'ExonDepthAtLeast20x(%)', 'ExonDepthAtLeast30x(%)', 'ExonDepthAtLeast50x(%)', 'ExonDepthAtLeast100x(%)', 'ExonDepthAtLeast300x(%)', 'ExonAvergeDepth', 'ExonCoverageAtLeast5(%)', 'ExonCoverageAtLeast20(%)', 'ExonCoverageAtLeast50(%)', 'ExonCoverageAtLeast80(%)', 'ExonCoverageAtLeast100(%)', 'ExonAverageCoverage', 'ExonTotalLength', 'ExonAvarageLength'])
     for fl in list_sample:
         raw,qc,q20,q30,gc = GetSequenceQC(os.path.join(QC, fl+'_QC_report.json'))
         QCRate = round((float(qc)*100)/raw, 2)
@@ -216,7 +217,7 @@ def main():
     pd_qc.loc[:, ['#RawReads', '#ReadsAfterQC', 'QCRate(%)', 'Q20', 'Q30', 'GC']].to_excel(qc_out, sheet_name='Sequencing QC', header=True, index=True)
     pd_qc.loc[:, ['#AlignedReads', '#UnAlignedReads', 'AligendRate(%)', '#DuplicateReads', '#ReadsAfterDedup', 'DuplicateRate(%)']].to_excel(qc_out, sheet_name='Alignment QC', header=True, index=True)
     pd_qc.loc[:, ['#TargetReads', '#UnTargetReads', 'TargetRate(%)']].to_excel(qc_out, sheet_name='Capture QC', header=True, index=True)
-    pd_qc.loc[:,['ExonDepthAtLeast5x(%)', 'ExonDepthAtLeast10x(%)', 'ExonDepthAtLeast20x(%)', 'ExonDepthAtLeast30x(%)', 'ExonDepthAtLeast50x(%)', 'ExonDepthAtLeast100x(%)', 'ExonDepthAtLeast300x(%)', 'ExonAvergeDepth', 'ExonCoverageAtLeast5x', 'ExonCoverageAtLeast20x', 'ExonCoverageAtLeast50x', 'ExonCoverageAtLeast80x', 'ExonCoverageAtLeast100x', 'ExonAverageCoverage', 'ExonTotalLength', 'ExonAvarageLength']].to_excel(qc_out, sheet_name='Capture QC(exon level)', header=True, index=True)
+    pd_qc.loc[:,['ExonDepthAtLeast5x(%)', 'ExonDepthAtLeast10x(%)', 'ExonDepthAtLeast20x(%)', 'ExonDepthAtLeast30x(%)', 'ExonDepthAtLeast50x(%)', 'ExonDepthAtLeast100x(%)', 'ExonDepthAtLeast300x(%)', 'ExonAvergeDepth', 'ExonCoverageAtLeast5(%)', 'ExonCoverageAtLeast20(%)', 'ExonCoverageAtLeast50(%)', 'ExonCoverageAtLeast80(%)', 'ExonCoverageAtLeast100(%)', 'ExonAverageCoverage', 'ExonTotalLength', 'ExonAvarageLength']].to_excel(qc_out, sheet_name='Capture QC(exon level)', header=True, index=True)
     pd_qc.loc[:,['Percentile5Depth', 'Percentile10Depth', 'Percentile25Depth', 'Percentile50Depth', 'Percentile75Depth', 'Percentile100Depth']].to_excel(qc_out, sheet_name='Depth distribution (bp)', header=True, index=True)
     pd_qc.loc[:,['Coverage(%)', 'CoverageAtLeast4x(%)', 'CoverageAtLeast10x(%)', 'CoverageAtLeast30x(%)', 'CoverageAtLeast100x(%)']].to_excel(qc_out, sheet_name='Coverage distribution(bp)', header=True, index=True)
     pd_snp =StatSNP(argv['i'])

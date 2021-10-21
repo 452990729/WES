@@ -1,5 +1,5 @@
-#!/usr/bin/env python2
-
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*
 
 import os
 import sys
@@ -11,7 +11,7 @@ BinPath = os.path.split(os.path.realpath(__file__))[0]
 Database = BinPath+'/../../Database/'
 
 def ReadData(file_in):
-    pd_data = pd.read_csv(file_in, sep='\t', header=0, index_col=None)
+    pd_data = pd.read_csv(file_in, sep='\t', header=0, index_col=None, error_bad_lines=False)
     return pd_data
 
 def AddHPO(pd_hpo, pd_anno):
@@ -28,6 +28,20 @@ def AddHPO(pd_hpo, pd_anno):
             list_HPOTermName.append('.')
     pd_anno['HPOTermID'] = list_HPOTermID
     pd_anno['HPOTermName'] = list_HPOTermName
+    return pd_anno
+
+def AddCHPO(pd_chpo, pd_anno):
+    list_chpo = []
+    list_ref = list(pd_chpo['HPO编号'])
+    pd_chpo.index = list_ref
+    for i in pd_anno['HPOTermID']:
+        list_split = re.split(',', i)
+        list_tmp = []
+        for m in list_split:
+            if m in list_ref:
+                list_tmp.append(str(pd_chpo.loc[m, '中文译名']))
+        list_chpo.append(','.join(list_tmp))
+    pd_anno['HPOTermChineseName'] = list_chpo
     return pd_anno
 
 def AddHgmd(pd_hgmd, pd_anno):
@@ -57,8 +71,11 @@ def main():
     argv=vars(parser.parse_args())
     pd_anno = ReadData(argv['i'])
     pd_hpo = ReadData(os.path.join(Database, 'hg19/HPO.txt'))
+    print(os.path.join(Database, 'hg19/chpo.2018.txt'))
+    pd_chpo = ReadData(os.path.join(Database, 'hg19/chpo.2018.txt'))
     pd_hgmd = ReadData(os.path.join(Database, 'hg19/hgmd.2018.allmut.final.sort.0504.txt'))
     pd_anno = AddHPO(pd_hpo, pd_anno)
+    pd_anno = AddCHPO(pd_chpo, pd_anno)
     pd_anno = AddHgmd(pd_hgmd, pd_anno)
     pd_anno.to_csv(argv['o'], sep='\t', header=True, index=False)
 
