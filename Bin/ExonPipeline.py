@@ -12,6 +12,7 @@ config.read(BasePath+'/../Bin/config.ini')
 
 #### SOFT
 PYTHON = config.get('SOFTWARE', 'python')
+PYTHON3 = config.get('SOFTWARE', 'python3')
 RSCRIPT = config.get('SOFTWARE', 'Rscript')
 BWA = config.get('SOFTWARE', 'bwa')
 FASTP = config.get('SOFTWARE', 'fastp')
@@ -20,14 +21,17 @@ SAMTOOLS = config.get('SOFTWARE', 'samtools')
 ANNOVAR = config.get('SOFTWARE', 'annovar')
 INTERVAR = config.get('SOFTWARE', 'InterVar')
 SNAKEMAKE = config.get('SOFTWARE', 'snakemake')
-
+PLINK = config.get('SOFTWARE', 'plink')
+KING = config.get('SOFTWARE', 'king')
 #### SCRIPT
 STATDATA = config.get('SCRIPT', 'StatData')
+REMOVEINTERDUP = config.get('SCRIPT', 'RemoveINterDup')
 MERGEDATA = config.get('SCRIPT', 'MergeData')
 ADDANNO = config.get('SCRIPT', 'AddAnno')
 FILTERINTERVAR = config.get('SCRIPT', 'FilterIntervar')
 SEPSAMPLEF = config.get('SCRIPT', 'SepSampleF')
 INTERGRATEMUTATION = config.get('SCRIPT', 'IntergrateMutation')
+MUTDENOVO = config.get('SCRIPT', 'MutDenovo')
 
 #### DATABASE
 HG19 = config.get('DATABASE', 'hg19')
@@ -134,7 +138,10 @@ def main():
 
     ###All
     All = Snake('All')
-    All.UpdateInput('"6.Final/QCStat.xls"')
+    if len(list_ob) == 3:
+        All.UpdateInput('a="7.Deliverable/QCStat.xls",b="7.Deliverable/Mut.denovo.mut.txt"')
+    else:
+        All.UpdateInput('"7.Deliverable/QCStat.xls"')
     All.WriteStr(snakefile)
     ### QC
     QC = Snake('QC')
@@ -157,7 +164,7 @@ def main():
     Sort.UpdateInput('"2.Align/{sample}.bam"')
     Sort.UpdateOutput('"2.Align/{sample}.sort.bam"')
     Sort.UpdateLog('e = "logs/{sample}.sort.e", o = "logs/{sample}.sort.o"')
-    Sort.UpdateShell(r'"'+GATK+r' SortSam --INPUT {input} --OUTPUT {output} --SORT_ORDER coordinate"')
+    Sort.UpdateShell(r'"'+GATK+r' SortSam --INPUT {input} --OUTPUT {output} --SORT_ORDER coordinate --TMP_DIR /mnt/dfc_data1/home/lixuefei/TMP"')
     Sort.WriteStr(snakefile)
     ### MarkDup
     MarkDup = Snake('MarkDup')
@@ -274,9 +281,23 @@ def main():
     Intervar.UpdateLog('e = "logs/{tp}.Intervar.e", o = "logs/{tp}.Intervar.o"')
     Intervar.UpdateShell(r'"'+INTERVAR+'/Intervar.py -b hg19 -i {input} --input_type avinput -o 5.Anno/2.Intervar/All.raw.{wildcards.tp}.filter -t '+INTERVAR+'/intervardb --table_annovar '+ANNOVAR+'/table_annovar.pl --convert2annovar '+ANNOVAR+'/convert2annovar.pl --annotate_variation '+ANNOVAR+'/annotate_variation.pl -d '+ANNOVAR+'/humandb/"')
     Intervar.WriteStr(snakefile)
+    ### RedupIntervar
+    RedupIntervar = Snake("RedupIntervar")
+    RedupIntervar.UpdateInput('"5.Anno/2.Intervar/All.raw.{tp}.filter.hg19_multianno.txt.intervar"')
+    RedupIntervar.UpdateOutput('"5.Anno/2.Intervar/All.raw.{tp}.filter.hg19_multianno.txt.intervar.redup"')
+    RedupIntervar.UpdateLog('e = "logs/{tp}.RedupIntervar.e", o = "logs/{tp}.RedupIntervar.o"')
+    RedupIntervar.UpdateShell(r'"'+REMOVEINTERDUP+' -i {input} -o {output}"')
+    RedupIntervar.WriteStr(snakefile)
+    ### KingShip
+    KingShip = Snake("KingShip")
+    KingShip.UpdateInput('"4.Mutation/All.raw.snp.filter.vcf"')
+    KingShip.UpdateOutput('"6.Final/KingShip/wes.result.kin0"')
+    KingShip.UpdateLog('e = "logs/KingShip.e", o = "logs/KingShip.o"')
+    KingShip.UpdateShell(r'"'+PLINK+' --vcf {input} --make-bed --out 6.Final/KingShip/wes;"\n\t\t"'+KING+' -b 6.Final/KingShip/wes.bed --kinship --prefix 6.Final/KingShip/wes.result"')
+    KingShip.WriteStr(snakefile)
     ### MergeAnno
     MergeAnno = Snake("MergeAnno")
-    MergeAnno.UpdateInput('annovar="5.Anno/1.Annovar/All.raw.{tp}.filter.anno.hg19_multianno.txt", interver="5.Anno/2.Intervar/All.raw.{tp}.filter.hg19_multianno.txt.intervar"')
+    MergeAnno.UpdateInput('annovar="5.Anno/1.Annovar/All.raw.{tp}.filter.anno.hg19_multianno.txt", interver="5.Anno/2.Intervar/All.raw.{tp}.filter.hg19_multianno.txt.intervar.redup"')
     MergeAnno.UpdateOutput('"6.Final/All.{tp}.interver.annovar.txt"')
     MergeAnno.UpdateLog('e = "logs/{tp}.MergeAnno.e", o = "logs/{tp}.MergeAnno.o"')
     MergeAnno.UpdateShell(r'"'+PYTHON+' '+MERGEDATA+' -i {input.interver} -a {input.annovar} -o {output}"')
@@ -286,51 +307,72 @@ def main():
     AddAnno.UpdateInput('"6.Final/All.{tp}.interver.annovar.txt"')
     AddAnno.UpdateOutput('"6.Final/All.{tp}.finalanno.txt"')
     AddAnno.UpdateLog('e = "logs/{tp}.AddAnno.e", o = "logs/{tp}.AddAnno.o"')
-    AddAnno.UpdateShell(r'"'+PYTHON+' '+ADDANNO+' -i {input} -o {output}"')
+    AddAnno.UpdateShell(r'"'+PYTHON3+' '+ADDANNO+' -i {input} -o {output}"')
     AddAnno.WriteStr(snakefile)
     ### FilterIntervar
     FilterIntervar = Snake('FilterIntervar')
     FilterIntervar.UpdateInput('"6.Final/All.{tp}.finalanno.txt"')
     FilterIntervar.UpdateOutput('"6.Final/Final{tp}Result.txt", "6.Final/Final{tp}ROI.txt"')
     FilterIntervar.UpdateLog('e = "logs/{tp}.FilterIntervar.e", o = "logs/{tp}.FilterIntervar.o"')
-    FilterIntervar.UpdateShell(r'"'+PYTHON+' '+FILTERINTERVAR+' -i {input} -o 6.Final/"')
+    FilterIntervar.UpdateShell(r'"'+PYTHON3+' '+FILTERINTERVAR+' -i {input} -o 6.Final/"')
     FilterIntervar.WriteStr(snakefile)
     ### SepSample
     SepSample = Snake('SepSample')
-    SepSample.UpdateInput('anno="6.Final/Final{tp}ROI.txt",vcf="4.Mutation/All.raw.{tp}.filter.vcf"')
-    SepSample.UpdateOutput('"6.Final/FinalSample{tp}ROI.txt"')
-    SepSample.UpdateLog('e = "logs/{tp}.SepSample.e", o = "logs/{tp}.SepSample.o"')
-    SepSample.UpdateShell(r'"'+PYTHON+' '+SEPSAMPLEF+' -i {input.anno} -v {input.vcf} -o {output}"')
+    SepSample.UpdateInput('anno="6.Final/FinalsnpROI.txt",vcf="4.Mutation/All.raw.snp.filter.vcf"')
+    SepSample.UpdateOutput('"6.Final/FinalSamplesnpROI.txt"')
+    SepSample.UpdateLog('e = "logs/snp.SepSample.e", o = "logs/snp.SepSample.o"')
+    SepSample.UpdateShell(r'"'+PYTHON3+' '+SEPSAMPLEF+' -i {input.anno} -v {input.vcf} -o {output}"')
     SepSample.WriteStr(snakefile)
+    ### SepSample_1
+    SepSample_1 = Snake('SepSample_1')
+    SepSample_1.UpdateInput('anno="6.Final/FinalindelROI.txt",vcf="4.Mutation/All.raw.indel.filter.vcf"')
+    SepSample_1.UpdateOutput('"6.Final/FinalSampleindelROI.txt"')
+    SepSample_1.UpdateLog('e = "logs/indel.SepSample.e", o = "logs/indel.SepSample.o"')
+    SepSample_1.UpdateShell(r'"'+PYTHON3+' '+SEPSAMPLEF+' -i {input.anno} -v {input.vcf} -o {output}"')
+    SepSample_1.WriteStr(snakefile)
     ### SepSample1
     SepSample1 = Snake('SepSample1')
     SepSample1.UpdateInput('anno="6.Final/Final{tp}Result.txt",vcf="4.Mutation/All.raw.{tp}.filter.vcf"')
     SepSample1.UpdateOutput('"6.Final/FinalSample{tp}.txt"')
     SepSample1.UpdateLog('e = "logs/{tp}.SepSample1.e", o = "logs/{tp}.SepSample1.o"')
-    SepSample1.UpdateShell(r'"'+PYTHON+' '+SEPSAMPLEF+' -i {input.anno} -v {input.vcf} -o {output}"')
+    SepSample1.UpdateShell(r'"'+PYTHON3+' '+SEPSAMPLEF+' -i {input.anno} -v {input.vcf} -o {output}"')
     SepSample1.WriteStr(snakefile)
     ### SepSample2
     SepSample2 = Snake('SepSample2')
     SepSample2.UpdateInput('anno="6.Final/All.{tp}.finalanno.txt",vcf="4.Mutation/All.raw.{tp}.filter.vcf"')
     SepSample2.UpdateOutput('"6.Final/AllSample{tp}.txt"')
     SepSample2.UpdateLog('e = "logs/{tp}.SepSample2.e", o = "logs/{tp}.SepSample2.o"')
-    SepSample2.UpdateShell(r'"'+PYTHON+' '+SEPSAMPLEF+' -i {input.anno} -v {input.vcf} -o {output}"')
+    SepSample2.UpdateShell(r'"'+PYTHON3+' '+SEPSAMPLEF+' -i {input.anno} -v {input.vcf} -o {output}"')
     SepSample2.WriteStr(snakefile)
     ### IntergrateMutation
     IntergrateMutation = Snake('IntergrateMutation')
     IntergrateMutation.UpdateInput('snp="6.Final/{cls}Samplesnp.txt",indel="6.Final/{cls}Sampleindel.txt"')
     IntergrateMutation.UpdateOutput('"6.Final/{cls}IntergrateMutation.txt"')
     IntergrateMutation.UpdateLog('e = "logs/Final.IntergrateMutation.e", o = "logs/Final.IntergrateMutation.o"')
-    IntergrateMutation.UpdateShell(r'"'+PYTHON+' '+INTERGRATEMUTATION+' -s {input.snp} -i {input.indel} -o {output}"')
+    IntergrateMutation.UpdateShell(r'"'+PYTHON3+' '+INTERGRATEMUTATION+' -s {input.snp} -i {input.indel} -o {output}"')
     IntergrateMutation.WriteStr(snakefile)
     ### StatQC
     StatQC = Snake('StatQC')
-    StatQC.UpdateInput('a="6.Final/AllIntergrateMutation.txt", b="6.Final/FinalIntergrateMutation.txt"')
+    StatQC.UpdateInput('a="6.Final/AllIntergrateMutation.txt", b="6.Final/FinalIntergrateMutation.txt", c="6.Final/FinalSamplesnpROI.txt", d="6.Final/FinalSampleindelROI.txt"')
     StatQC.UpdateOutput('"6.Final/QCStat.xls"')
     StatQC.UpdateLog('e = "logs/StatQC.e", o = "logs/StatQC.o"')
     StatQC.UpdateShell(r'"'+PYTHON+' '+STATDATA+' -i '+outpath+' -b {REGION} -o {output}"')
     StatQC.WriteStr(snakefile)
-
+    ### Deliverable
+    Deliverable = Snake('Deliverable')
+    Deliverable.UpdateInput('a="6.Final/QCStat.xls", b="6.Final/KingShip/wes.result.kin0",c="6.Final/AllIntergrateMutation.txt", d="6.Final/FinalIntergrateMutation.txt"')
+    Deliverable.UpdateOutput('"7.Deliverable/QCStat.xls"')
+    Deliverable.UpdateLog('e = "logs/Deliverable.e", o = "logs/Deliverable.o"')
+    Deliverable.UpdateShell(r'"'+'cp {input.a} 7.Deliverable;"\n\t\t"'+'cp {input.b} 7.Deliverable;"\n\t\t"'+'cp {input.c} 7.Deliverable;"\n\t\t"'+'cp {input.d} 7.Deliverable;"')
+    Deliverable.WriteStr(snakefile)
+    ### DenovoMut
+    if len(list_ob) == 3:
+        DenovoMut = Snake('DenovoMut')
+        DenovoMut.UpdateInput('"6.Final/AllIntergrateMutation.txt"')
+        DenovoMut.UpdateOutput('"7.Deliverable/Mut.denovo.mut.txt"')
+        DenovoMut.UpdateLog('e = "logs/DenovoMut.e", o = "logs/DenovoMut.o"')
+        DenovoMut.UpdateShell(r'"cd '+outpath+'/7.Deliverable/;"\n\t\t"'+MUTDENOVO+' 1 2 3 3 '+outpath+'/{input} Mut;"\n\t\t"'+'cd '+outpath+'"')
+        DenovoMut.WriteStr(snakefile)
     ######RUN
     OutShell = os.path.join(outpath, 'work.sh')
     MakeSnake(os.path.join(outpath, 'snakefile.txt'), OutShell, argv['p'], argv['j'])
