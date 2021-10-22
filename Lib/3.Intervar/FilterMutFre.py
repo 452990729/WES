@@ -7,7 +7,7 @@ import argparse
 import pandas as pd
 
 def ReadData(file_in):
-    pd_data = pd.read_csv(file_in, sep='\t', header=0, index_col=None)
+    pd_data = pd.read_excel(file_in, header=0, index_col=None)
     return pd_data
 
 def Jk(pd_data, index, string, fre):

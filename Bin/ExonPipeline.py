@@ -23,6 +23,7 @@ INTERVAR = config.get('SOFTWARE', 'InterVar')
 SNAKEMAKE = config.get('SOFTWARE', 'snakemake')
 PLINK = config.get('SOFTWARE', 'plink')
 KING = config.get('SOFTWARE', 'king')
+TXT2EXCEL = config.get('SOFTWARE', 'Txt2Xlsx')
 #### SCRIPT
 STATDATA = config.get('SCRIPT', 'StatData')
 REMOVEINTERDUP = config.get('SCRIPT', 'RemoveINterDup')
@@ -32,6 +33,8 @@ FILTERINTERVAR = config.get('SCRIPT', 'FilterIntervar')
 SEPSAMPLEF = config.get('SCRIPT', 'SepSampleF')
 INTERGRATEMUTATION = config.get('SCRIPT', 'IntergrateMutation')
 MUTDENOVO = config.get('SCRIPT', 'MutDenovo')
+FILTERMUTFRE = config.get('SCRIPT', 'FilterMutFre')
+ADDSEPINFOR = config.get('SCRIPT', 'AddSepInfor')
 
 #### DATABASE
 HG19 = config.get('DATABASE', 'hg19')
@@ -138,10 +141,11 @@ def main():
 
     ###All
     All = Snake('All')
-    if len(list_ob) == 3:
-        All.UpdateInput('a="7.Deliverable/QCStat.xls",b="7.Deliverable/Mut.denovo.mut.txt"')
-    else:
-        All.UpdateInput('"7.Deliverable/QCStat.xls"')
+#    if len(list_ob) == 3:
+#        All.UpdateInput('a="7.Deliverable/QCStat.xls",b="7.Deliverable/Mut.denovo.mut.txt"')
+#    else:
+#        All.UpdateInput('"7.Deliverable/QCStat.xls"')
+    All.UpdateInput('"FinalAll.tar.gz"')
     All.WriteStr(snakefile)
     ### QC
     QC = Snake('QC')
@@ -365,6 +369,13 @@ def main():
     Deliverable.UpdateLog('e = "logs/Deliverable.e", o = "logs/Deliverable.o"')
     Deliverable.UpdateShell(r'"'+'cp {input.a} 7.Deliverable;"\n\t\t"'+'cp {input.b} 7.Deliverable;"\n\t\t"'+'cp {input.c} 7.Deliverable;"\n\t\t"'+'cp {input.d} 7.Deliverable;"')
     Deliverable.WriteStr(snakefile)
+    ### StatFinal
+    StatFinal = Snake('StatFinal')
+    StatFinal.UpdateInput('a="7.Deliverable/QCStat.xls", b="7.Deliverable/wes.result.kin0"')
+    StatFinal.UpdateOutput('"8.FinalAll/QCStat.xls"')
+    StatFinal.UpdateLog('e = "logs/StatFinal.e", o = "logs/StatFinal.o"')
+    StatFinal.UpdateShell(r'"'+'cp {input.a} 8.FinalAll;"\n\t\t"'+'cp {input.b} 8.FinalAll;"\n\t\t"'+ADDSEPINFOR+' 6.Final/AllIntergrateMutation.xlsx \'#Chr\' 8.FinalAll;"\n\t\t"'+ADDSEPINFOR+' 6.Final/FinalIntergrateMutation.xlsx level 8.FinalAll;"\n\t\t"'+FILTERMUTFRE+' -i 8.FinalAll/FinalIntergrateMutation.final.xlsx -f 0.001 -o 8.FinalAll/FinalIntergrateMutation.Fre0001.final.xlsx;"\n\t\t"'+FILTERMUTFRE+' -i 8.FinalAll/AllIntergrateMutation.final.xlsx -f 0.001 -o 8.FinalAll/AllIntergrateMutation.Fre0001.final.xlsx"')
+    StatFinal.WriteStr(snakefile)
     ### DenovoMut
     if len(list_ob) == 3:
         DenovoMut = Snake('DenovoMut')
@@ -373,6 +384,28 @@ def main():
         DenovoMut.UpdateLog('e = "logs/DenovoMut.e", o = "logs/DenovoMut.o"')
         DenovoMut.UpdateShell(r'"cd '+outpath+'/7.Deliverable/;"\n\t\t"'+MUTDENOVO+' 1 2 3 3 '+outpath+'/{input} Mut;"\n\t\t"'+'cd '+outpath+'"')
         DenovoMut.WriteStr(snakefile)
+        ### DenovoTrans
+        DenovoTrans = Snake('DenovoTrans')
+        DenovoTrans.UpdateInput('"7.Deliverable/Mut.denovo.mut.txt"')
+        DenovoTrans.UpdateOutput('"8.FinalAll/Mut.denovo.mut.xlsx"')
+        DenovoTrans.UpdateLog('e = "logs/DenovoTrans.e", o = "logs/DenovoTrans.o"')
+        DenovoTrans.UpdateShell(r'"'+TXT2EXCEL+' -in {input} -out 8.FinalAll/;"\n\t\t"'+TXT2EXCEL+' -in 7.Deliverable/Mut.compound_heter.txt -out 8.FinalAll/;"\n\t\t"'+TXT2EXCEL+' -in 7.Deliverable/Mut.parent.heter.proband.homo.mut.txt -out 8.FinalAll/"')
+        DenovoTrans.WriteStr(snakefile)
+        ##TAR
+        TAR = Snake('TAR')
+        TAR.UpdateInput('a="8.FinalAll/QCStat.xls", b="8.FinalAll/Mut.denovo.mut.xlsx"')
+        TAR.UpdateOutput('"FinalAll.tar.gz"')
+        TAR.UpdateLog('e = "logs/tar.e", o = "logs/tar.o"')
+        TAR.UpdateShell(r'"'+'tar zcvf {output} 8.FinalAll"')
+        TAR.WriteStr(snakefile)
+    else:
+        ##TAR
+        TAR = Snake('TAR')
+        TAR.UpdateInput('a="8.FinalAll/QCStat.xls"')
+        TAR.UpdateOutput('"FinalAll.tar.gz"')
+        TAR.UpdateLog('e = "logs/tar.e", o = "logs/tar.o"')
+        TAR.UpdateShell(r'"'+'tar zcvf {output} 8.FinalAll"')
+        TAR.WriteStr(snakefile)
     ######RUN
     OutShell = os.path.join(outpath, 'work.sh')
     MakeSnake(os.path.join(outpath, 'snakefile.txt'), OutShell, argv['p'], argv['j'])

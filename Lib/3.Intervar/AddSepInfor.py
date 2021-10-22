@@ -3,6 +3,7 @@
 
 import sys
 import re
+import os
 import pandas as pd
 
 def ReadData(file_in):
@@ -29,15 +30,18 @@ def GetHet(string_in):
             list_out.append('杂合')
         else:
             list_out.append('多重杂合')
-    fre = round(float(r2)/(float(r1)+float(r2)), 2)
+    if float(r1)+float(r2) > 0:
+        fre = round(float(r2)/(float(r1)+float(r2)), 2)
+    else:
+        fre = 'NA'
     list_out += [r1, r2, str(fre)]
     return list_out
 
-def ProcessPd(pd_data):
+def ProcessPd(pd_data, index):
     list_columns = list(pd_data.columns)
     list_s = []
     for i in list_columns:
-        if i != '#Chr':
+        if i != index:
             list_s.append(i)
         else:
             break
@@ -56,9 +60,9 @@ def ProcessPd(pd_data):
 
 def main():
     pd_data = ReadData(sys.argv[1])
-    pd_out = ProcessPd(pd_data)
-    lb = sys.argv[1].rstrip('.xlsx')
-    pd_out.to_excel(lb+'.final.xlsx', header=True, index=None)
+    pd_out = ProcessPd(pd_data, sys.argv[2])
+    lb = os.path.basename(sys.argv[1]).rstrip('.xlsx')
+    pd_out.to_excel(os.path.join(sys.argv[3], lb+'.final.xlsx'), header=True, index=None)
 
 
 if __name__ == '__main__':
