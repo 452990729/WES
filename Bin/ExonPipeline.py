@@ -371,7 +371,7 @@ def main():
     Deliverable.WriteStr(snakefile)
     ### StatFinal
     StatFinal = Snake('StatFinal')
-    StatFinal.UpdateInput('a="7.Deliverable/QCStat.xls", b="7.Deliverable/wes.result.kin0"')
+    StatFinal.UpdateInput('a="7.Deliverable/QCStat.xls", b="6.Final/KingShip/wes.result.kin0"')
     StatFinal.UpdateOutput('"8.FinalAll/QCStat.xls"')
     StatFinal.UpdateLog('e = "logs/StatFinal.e", o = "logs/StatFinal.o"')
     StatFinal.UpdateShell(r'"'+'cp {input.a} 8.FinalAll;"\n\t\t"'+'cp {input.b} 8.FinalAll;"\n\t\t"'+ADDSEPINFOR+' 6.Final/AllIntergrateMutation.xlsx \'#Chr\' 8.FinalAll;"\n\t\t"'+ADDSEPINFOR+' 6.Final/FinalIntergrateMutation.xlsx level 8.FinalAll;"\n\t\t"'+FILTERMUTFRE+' -i 8.FinalAll/FinalIntergrateMutation.final.xlsx -f 0.001 -o 8.FinalAll/FinalIntergrateMutation.Fre0001.final.xlsx;"\n\t\t"'+FILTERMUTFRE+' -i 8.FinalAll/AllIntergrateMutation.final.xlsx -f 0.001 -o 8.FinalAll/AllIntergrateMutation.Fre0001.final.xlsx"')
